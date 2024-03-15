@@ -1,142 +1,27 @@
-const fs = require("fs");
 const express = require("express");
+const morgan = require("morgan");
 
 const app = express();
-const PORT = 8000;
+
+const customerRouter = require("./routes/customerRoutes");
 
 // middleware untuk membaca json dari request body ke kita
 app.use(express.json());
 
-// read file json nya
-const customers = JSON.parse(fs.readFileSync(`${__dirname}/data/dummy.json`));
+// middleware dari third party = 3rd party middleware
+app.use(morgan("dev"));
 
-const defaultRouter = (req, res, next) => {
-  res.send("<p>Hello FSW 1 tercinta</p>");
-};
-
-const getCustomers = (req, res, next) => {
-  res.status(200).json({
-    status: "success",
-    totalData: customers.length,
-    data: {
-      customers,
-    },
-  });
-};
-
-const getCustomerById = (req, res, next) => {
-  const id = req.params.id;
-
-  // menggunakan array method utk membantu menemukan spesifik data
-  const customer = customers.find((cust) => cust._id === id);
-
-  res.status(200).json({
-    status: "success",
-    data: {
-      customer,
-    },
-  });
-};
-
-const updateCustomer = (req, res) => {
-  console.log("MASUK EDIT GAK");
-  const id = req.params.id;
-
-  // 1. melakukan pencarian data yg sesuai parameter id nya
-  const customer = customers.find((cust) => cust._id === id);
-  const customerIndex = customers.findIndex((cust) => cust._id === id);
-
-  console.log(customer);
-  console.log(customerIndex);
-  console.log(!customer);
-
-  // 2. ada gak data customer nya
-  if (!customer) {
-    return res.status(404).json({
-      status: "fail",
-      message: `customer dengan ID : ${id} gak ada`,
-    });
-  }
-
-  // 3. kalau ada, berarti update data nya sesuai request body dari client/user
-  // object assign = menggabungkan objek OR spread operator
-  customers[customerIndex] = { ...customers[customerIndex], ...req.body };
-
-  console.log(customers[customerIndex]);
-
-  // 4. melakukan update di dokumen json nya
-  fs.writeFile(
-    `${__dirname}/data/dummy.json`,
-    JSON.stringify(customers),
-    (err) => {
-      res.status(200).json({
-        status: "success",
-        message: "berhasil update data",
-      });
-    }
-  );
-};
-
-const deleteCustomer = (req, res) => {
-  const id = req.params.id;
-
-  // 1. melakukan pencarian data yg sesuai parameter id nya
-  const customer = customers.find((cust) => cust._id === id);
-  const customerIndex = customers.findIndex((cust) => cust._id === id);
-
-  // 2. ada gak data customer nya
-  if (!customer) {
-    return res.status(404).json({
-      status: "fail",
-      message: `customer dengan ID : ${id} gak ada`,
-    });
-  }
-
-  // 3. kalau ada, berarti delete data nya
-  customers.splice(customerIndex, 1);
-
-  // 4. melakukan update di dokumen json nya
-  fs.writeFile(
-    `${__dirname}/data/dummy.json`,
-    JSON.stringify(customers),
-    (err) => {
-      res.status(200).json({
-        status: "success",
-        message: "berhasil delete data",
-      });
-    }
-  );
-};
-
-const createCustomer = (req, res) => {
-  console.log(req.body);
-
-  const newCustomer = req.body;
-
-  customers.push(newCustomer);
-
-  fs.writeFile(
-    `${__dirname}/data/dummy.json`,
-    JSON.stringify(customers),
-    (err) => {
-      res.status(201).json({
-        status: "success",
-        data: {
-          customer: newCustomer,
-        },
-      });
-    }
-  );
-};
-
-app.get("/", defaultRouter);
-app.route("/api/v1/customers").get(getCustomers).post(createCustomer);
-app
-  .route("/api/v1/customers/:id")
-  .get(getCustomerById)
-  .patch(updateCustomer)
-  .delete(deleteCustomer);
-
-app.listen(PORT, () => {
-  console.log(`APP running on port : ${PORT}`);
+// middleware kita sendiri
+app.use((req, res, next) => {
+  console.log("Hello FSW 1, ini middleware kita sendiri..");
+  next();
 });
+
+app.use((req, res, next) => {
+  req.requestTime = new Date().toISOString();
+  next();
+});
+
+app.use("/api/v1/customers", customerRouter);
+
+module.exports = app;
